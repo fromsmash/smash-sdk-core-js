@@ -1,0 +1,1 @@
+# smash-sdk-core-js
