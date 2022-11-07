@@ -1,5 +1,5 @@
 {
-  "name": "@smash-sdk/smash-sdk-core",
+  "name": "@smash-sdk/core",
   "version": "0.0.1-alpha.53",
   "main": "dist/index.js",
   "types": "dist/index.d.js",
