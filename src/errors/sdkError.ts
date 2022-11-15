@@ -56,7 +56,7 @@ export class SDKError extends Error {
     static stack(): NodeJS.CallSite[] {
         const prepareStackTrace = Error.prepareStackTrace;
         Error.prepareStackTrace = (_, stack) => stack;
-        const stack = (new Error().stack) as unknown as NodeJS.CallSite[];
+        const stack = ((new Error().stack) as unknown as NodeJS.CallSite[]).filter(s => !!s.getFileName());
         while ((stack[0].getFileName() as string).indexOf("sdkError") >= 0) {
             stack.shift();
         }

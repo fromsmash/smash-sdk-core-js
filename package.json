@@ -1,6 +1,7 @@
 {
   "name": "@smash-sdk/core",
-  "version": "0.0.2",
+  "version": "0.0.3",
+  "description": "Smash Sdk core package",
   "main": "dist/index.js",
   "types": "dist/index.d.js",
   "author": "Smash & Co",
@@ -30,17 +31,9 @@
     "axios": "^0.27.2",
     "axios-retry": "^3.3.1"
   },
-  "license": "MIT",
-  "directories": {
-    "test": "test"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/fromsmash/smash-sdk-core-js.git"
-  },
-  "bugs": {
-    "url": "https://github.com/fromsmash/smash-sdk-core-js/issues"
-  },
-  "homepage": "https://github.com/fromsmash/smash-sdk-core-js#readme",
-  "description": ""
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "license": "MIT"
 }
