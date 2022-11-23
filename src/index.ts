@@ -4,3 +4,4 @@ export * from './errors/sdkError';
 export * from './client/client';
 export * from './client/types';
 export * from './config/config';
+export * from './helper/id';

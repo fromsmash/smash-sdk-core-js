@@ -5,6 +5,7 @@ export type HttpQueryParameters = { [key: string]: string | number };
 export type HttpPathParameters = { [key: string]: string | number };
 export type HttpHeaders = { [key: string]: string | number };
 export type HttpBodyParameters = { [key: string]: any } | string | Buffer | ArrayBuffer;
+export type HttpResponseType = 'stream' | 'object';
 
 export interface UploadProgressEvent {
     uploadedBytes: number;
@@ -14,29 +15,25 @@ export interface UploadProgressEvent {
 
 export type HttpRequestParameters = HttpRequestUrlParameters | HttpRequestHostParameters;
 
-export interface HttpRequestUrlParameters {
+export interface HttpRequestUrlParameters extends HttpRequestBaseParameters {
     url: string;
     method: HttpMethod;
-    headers?: HttpHeaders;
-    queryParameters?: HttpQueryParameters;
-    pathParameters?: HttpPathParameters;
-    bodyParameters?: HttpBodyParameters;
-    timeout?: number;
-    bypassErrorHandler?: boolean;
-    onUploadProgress?: (event: UploadProgressEvent) => void;
-    refreshTokenMethod?: RefreshTokenMethod;
 }
 
-export interface HttpRequestHostParameters {
+export interface HttpRequestHostParameters extends HttpRequestBaseParameters {
     host: string;
     path: string;
     method: HttpMethod;
+}
+
+interface HttpRequestBaseParameters {
     headers?: HttpHeaders;
     queryParameters?: HttpQueryParameters;
     pathParameters?: HttpPathParameters;
     bodyParameters?: HttpBodyParameters;
     timeout?: number;
     bypassErrorHandler?: boolean;
+    responseType?: HttpResponseType;
     onUploadProgress?: (event: UploadProgressEvent) => void;
     refreshTokenMethod?: RefreshTokenMethod;
 }
@@ -47,10 +44,8 @@ export type HttpResponsesParameters<OutputBody> = {
     body: OutputBody;
 };
 
-
 export interface HttpClient {
     handle<OutputBody>(request: HttpRequest, retries?: number): Promise<HttpResponse<OutputBody>>;
-    destroy?: () => void;//FIX ME useless?
 }
 
 
@@ -65,6 +60,7 @@ export class HttpRequest {
     public bodyParameters?: HttpBodyParameters;
     public timeout?: number;
     public bypassErrorHandler?: boolean = false;
+    public responseType?: HttpResponseType = 'object';
     public onUploadProgress?: (event: UploadProgressEvent) => void;
     public refreshTokenMethod?: RefreshTokenMethod;
 
@@ -86,6 +82,9 @@ export class HttpRequest {
         this.bodyParameters = params.bodyParameters;
         this.timeout = params.timeout;
         this.bypassErrorHandler = params.bypassErrorHandler;
+        if (params.responseType) {
+            this.responseType = params.responseType;
+        }
         if (params.onUploadProgress) {
             this.onUploadProgress = params.onUploadProgress;
         }

@@ -1,5 +1,4 @@
 export interface ResponseError {
-    //TODO
     name: string;
     code?: number;
     error?: string;

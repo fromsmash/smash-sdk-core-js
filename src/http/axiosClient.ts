@@ -1,9 +1,8 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { RefreshTokenMethod } from '../client/types';
-import { NetworkError, SDKError, UnknownError } from '../errors/sdkError';
-import constant from '../global/constant';
-// import axiosRetry from 'axios-retry';
+import { NetworkError, UnknownError } from '../errors/sdkError';
 import { HttpClient, HttpRequest, HttpResponse, UploadProgressEvent } from './types';
+import { XMLParser } from "fast-xml-parser";
 
 interface AxiosUploadProgressEvent {
     loaded: number,
@@ -11,30 +10,20 @@ interface AxiosUploadProgressEvent {
     timeStamp: number,
 };
 
-export class AxiosClient<T = any> implements HttpClient {
+const defaultAxiosConfig: AxiosRequestConfig = {
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
+    responseType: 'json',
+};
+
+export class AxiosClient implements HttpClient {
 
     client: AxiosInstance;
     refreshTokenMethod?: RefreshTokenMethod;
-    //public retries: number = 3;// FIX ME 
+
 
     constructor() {
-        this.client = axios.create(constant.AXIOS_CLIENT_DEFAULT_CONFIG)
-        // retries
-        /*   axiosRetry(this.client, {//FIX ME 
-              retries: params.retries || this.retries,
-              retryDelay: axiosRetry.exponentialDelay
-          }); */
-        /*         this.client.interceptors.response.use((response) => response, (error) => {
-                    if (!error?.response?.body) {
-                        error.response.body = {};
-                    }
-                    // console.log('ERROR MSG', error.response?.data);
-                    error.response.body = error.response.data;
-                    error.response.body.name = error.response?.data?.name || 'NotFound';//FIX ME why NotFound // temp waiting for api to set name on errors            
-        
-                    delete error.response.data;
-                    return Promise.reject(error);
-                }); */
+        this.client = axios.create(defaultAxiosConfig)
     }
 
     handle<OutputBody>(request: HttpRequest, retries: number = 0): Promise<HttpResponse<OutputBody>> {
@@ -42,16 +31,16 @@ export class AxiosClient<T = any> implements HttpClient {
             try {
                 const axiosParams = this.transformToAxiosParams(request);
                 const response = await this.client.request(axiosParams);
-                const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse(response);
+                const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse<OutputBody>(response);
                 resolve(smashResponse);
             } catch (error: unknown) {
                 if (!(error as AxiosError)?.response && (error as AxiosError)?.request) {
                     reject(new NetworkError(error as AxiosError));
                 } else if (request.bypassErrorHandler && error instanceof AxiosError && error?.response) {
-                    const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse((error as AxiosError).response as AxiosResponse<OutputBody>);
+                    const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse<OutputBody>((error as AxiosError).response as AxiosResponse<OutputBody>);
                     resolve(smashResponse);
                 } else if ((error as AxiosError)?.response?.status) {
-                    const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse((error as AxiosError).response as AxiosResponse<OutputBody>);
+                    const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse<OutputBody>((error as AxiosError).response as AxiosResponse<OutputBody>);
                     if (smashResponse.statusCode === 401 && request.refreshTokenMethod) {
                         try {
                             const token = await request.refreshTokenMethod(smashResponse, retries);
@@ -77,7 +66,11 @@ export class AxiosClient<T = any> implements HttpClient {
     };
 
     transformToSmashResponse<OutputBody>(response: AxiosResponse<OutputBody>): HttpResponse<OutputBody> {
-        return new HttpResponse({ ...response, body: response.data });
+        if (response?.headers?.['content-type'] === 'application/xml' && typeof response?.data === 'string') {
+            const parser = new XMLParser();
+            response.data = parser.parse(response.data as string) as OutputBody;
+        }
+        return new HttpResponse<OutputBody>({ ...response, body: response.data });
     }
 
     transformToAxiosParams(request: HttpRequest): AxiosRequestConfig {
@@ -87,6 +80,7 @@ export class AxiosClient<T = any> implements HttpClient {
             headers: request.headers,
             data: request.bodyParameters,
             params: request.queryParameters,
+            responseType: request.responseType === 'object' ? 'json' : 'stream',
             onUploadProgress: (event: AxiosUploadProgressEvent) => {
                 if (request.onUploadProgress) {
                     const parsedEvent: UploadProgressEvent = {
@@ -98,10 +92,6 @@ export class AxiosClient<T = any> implements HttpClient {
                 }
             },
         };
-    }
-
-    destroy() {
-        // delete this.client;
     }
 }
 
