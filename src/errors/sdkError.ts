@@ -73,3 +73,7 @@ export class SDKError extends Error {
 
 export class UnknownError extends SDKError { }
 export class NetworkError extends SDKError { }
+export class InvalidSdkConfigurationError extends SDKError { }
+export class InvalidRegionOrHostError extends InvalidSdkConfigurationError { }
+export class InvalidRegionError extends InvalidRegionOrHostError { }
+export class InvalidHostError extends InvalidRegionOrHostError { }

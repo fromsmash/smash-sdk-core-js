@@ -15,3 +15,12 @@ export const swappedRegions: { [key: string]: Region } = {
 export function getRegionFromId(id: string): Region {
     return swappedRegions[id[id.length - 2] as keyof typeof swappedRegions];
 }
+
+export function isValidTeamId(id: string): boolean {
+    const regexp = new RegExp('^.*-7[' + Object.keys(swappedRegions).join('') + ']$');
+    return regexp.test(id);
+}
+
+export function getAvailableRegions(): Region[] {
+    return Object.values(swappedRegions);
+}

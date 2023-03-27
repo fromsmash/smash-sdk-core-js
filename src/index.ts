@@ -6,3 +6,4 @@ export * from './client/types';
 export * from './config/config';
 export * from './helper/id';
 export * from './helper/node';
+export * from './helper/omit';

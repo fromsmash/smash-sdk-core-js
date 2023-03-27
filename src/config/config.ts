@@ -1,7 +1,11 @@
-import { Region, Global } from "../client/types";
-import { SDKError } from "../errors/sdkError";
+import { Region, Global as GlobalRegion, RefreshTokenMethod } from "../client/types";
+import { InvalidRegionError } from "../errors/sdkError";
+import { isNode } from "../helper/node";
 import { SmashEnvRegion, SmashEnvToken } from "./types/index";
+import { version } from '../version';
+import { RefreshTokenManager } from "../helper/refreshTokenManager";
 
+const globalKey = Symbol('smashSdkConfig_' + version);
 export interface RegionalHost {
     "eu-west-1"?: string;
     "eu-west-2"?: string;
@@ -25,12 +29,24 @@ export interface Hosts {
 declare global {
     namespace NodeJS {
         interface Global {
-            smashSdkConfig?: Config;
+            [globalKey]?: Config;
+            //Note: data format should never change in the next release for the 5 next properties
+            smashSdkHosts?: Hosts;
+            smashSdkToken?: string;
+            smashSdkRegion?: Region | GlobalRegion;
+            smashSdkRefreshTokenMethod?: RefreshTokenMethod;
+            smashSdkRefreshTokenManager?: RefreshTokenManager;
         }
     }
 
     interface Window {
-        smashSdkConfig?: Config;
+        [globalKey]?: Config;
+        //Note: data format should never change in the next release for the 5 next properties
+        smashSdkHosts?: Hosts;
+        smashSdkToken?: string;
+        smashSdkRegion?: Region | GlobalRegion;
+        smashSdkRefreshTokenMethod?: RefreshTokenMethod;
+        smashSdkRefreshTokenManager?: RefreshTokenManager;
     }
 }
 
@@ -38,23 +54,110 @@ export class Config {
 
     private static instance: Config;
 
-    hosts: Hosts = {};
-    token?: string;
-    region?: Region | Global;
+    get hosts(): Hosts {
+        if (isNode()) {
+            if (!(global as NodeJS.Global).smashSdkHosts) {
+                (global as NodeJS.Global).smashSdkHosts = {};
+            }
+            return (global as NodeJS.Global).smashSdkHosts!;
+        } else {
+            if (!(window as Window).smashSdkHosts) {
+                (window as Window).smashSdkHosts = {};
+            }
+            return window.smashSdkHosts!;
+        }
+    }
+
+    set hosts(hosts: Hosts) {
+        if (isNode()) {
+            (global as NodeJS.Global).smashSdkHosts! = hosts;
+        } else {
+            window.smashSdkHosts = hosts;
+        }
+    }
+
+    get token(): string | undefined {
+        if (isNode()) {
+            return (global as NodeJS.Global).smashSdkToken;
+        } else {
+            return window.smashSdkToken;
+        }
+    }
+
+    set token(token: string | undefined) {
+        if (isNode()) {
+            (global as NodeJS.Global).smashSdkToken = token;
+        } else {
+            window.smashSdkToken = token;
+        }
+    }
+
+    get region(): Region | GlobalRegion | undefined {
+        if (isNode()) {
+            return (global as NodeJS.Global).smashSdkRegion;
+        } else {
+            return window.smashSdkRegion;
+        }
+    }
+
+    set region(region: Region | GlobalRegion | undefined) {
+        if (isNode()) {
+            (global as NodeJS.Global).smashSdkRegion = region;
+        } else {
+            window.smashSdkRegion = region;
+        }
+    }
+
+    get refreshTokenMethod(): RefreshTokenMethod | undefined {
+        if (isNode()) {
+            return (global as NodeJS.Global).smashSdkRefreshTokenMethod;
+        } else {
+            return window.smashSdkRefreshTokenMethod;
+        }
+    }
+
+    set refreshTokenMethod(refreshTokenMethod: RefreshTokenMethod | undefined) {
+        if (isNode()) {
+            (global as NodeJS.Global).smashSdkRefreshTokenMethod = refreshTokenMethod;
+        } else {
+            window.smashSdkRefreshTokenMethod = refreshTokenMethod;
+        }
+        if (refreshTokenMethod) {
+            this.refreshtokenManager = new RefreshTokenManager(refreshTokenMethod);
+        } else {
+            this.refreshtokenManager = undefined;
+        }
+    }
+
+    get refreshtokenManager(): RefreshTokenManager | undefined {
+        if (isNode()) {
+            return (global as NodeJS.Global).smashSdkRefreshTokenManager;
+        } else {
+            return window.smashSdkRefreshTokenManager;
+        }
+    }
+
+    set refreshtokenManager(refreshTokenManager: RefreshTokenManager | undefined) {
+        if (isNode()) {
+            (global as NodeJS.Global).smashSdkRefreshTokenManager = refreshTokenManager;
+        } else {
+            window.smashSdkRefreshTokenManager = refreshTokenManager;
+        }
+    }
 
     public static get Instance() {
         if (isNode()) {
-            if (!(global as NodeJS.Global).smashSdkConfig) {
+            if (!(global as NodeJS.Global)[globalKey]) {
                 Config.instance = new Config();
-                (global as NodeJS.Global).smashSdkConfig = Config.instance
+                (global as NodeJS.Global)[globalKey] = Config.instance
             }
-            Config.instance = (global as NodeJS.Global).smashSdkConfig as Config;
+            Config.instance = (global as NodeJS.Global)[globalKey] as Config;
         } else {
-            if (!(window as Window).smashSdkConfig) {
+            if (!(window as Window)[globalKey]) {
                 Config.instance = new Config();
-                (window as Window).smashSdkConfig = Config.instance
+                (window as Window)[globalKey] = Config.instance
             }
-            Config.instance = window.smashSdkConfig as Config;
+            Config.instance = window[globalKey] as Config;
         }
         return Config.instance;
     }
@@ -72,13 +175,13 @@ export class Config {
         }
     }
 
-    getHost(service: keyof Hosts, region: Region | Global = "global"): string {
-        if (region === "global") {
+    getHost(service: keyof Hosts, region: Region | GlobalRegion = "global"): string {
+        if (region === "global" && (this.hosts[service] as GlobalHost)[region as keyof GlobalHost]) {
             return (this.hosts[service] as GlobalHost)[region as keyof GlobalHost];
         } else if ((this.hosts[service] as RegionalHost)[region as keyof RegionalHost]) {
             return (this.hosts[service] as RegionalHost)[region as keyof RegionalHost] as string;
         } else {
-            throw new SDKError("Invalid region asked: " + region + " for service " + service + ", available regions are " + Object.keys((this.hosts[service] as RegionalHost)).join(", ") + ".");
+            throw new InvalidRegionError("Invalid region asked: " + region + " for service " + service + ", available regions are " + Object.keys((this.hosts[service] as RegionalHost)).join(", ") + ".");
         }
     }
 
@@ -90,7 +193,7 @@ export class Config {
         this.region = region;
     }
 
-    getRegion(): Region | Global | undefined {
+    getRegion(): Region | GlobalRegion | undefined {
         return this.region;
     }
 
@@ -101,20 +204,18 @@ export class Config {
     getToken(): string | undefined {
         return this.token;
     }
-}
 
-
-let cachedIsNode: boolean;
-let called = false;
-const detect = new Function('try {return this===global;}catch(e){return false;}');
-
-function isNode(): boolean {
-    if (called) {
-        return cachedIsNode;
+    setRefreshTokenMethod(refreshtokenMethod: RefreshTokenMethod) {
+        this.refreshTokenMethod = refreshtokenMethod;
     }
-    cachedIsNode = detect();
-    called = true;
-    return cachedIsNode;
+
+    getRefreshTokenMethod(): RefreshTokenMethod | undefined {
+        return this.refreshTokenMethod;
+    }
+
+    getRefreshTokenManager(): RefreshTokenManager | undefined {
+        return this.refreshtokenManager;
+    }
 }
 
 export const config = Config.Instance;

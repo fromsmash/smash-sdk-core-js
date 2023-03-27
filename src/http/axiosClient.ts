@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { RefreshTokenMethod } from '../client/types';
-import { NetworkError, UnknownError } from '../errors/sdkError';
+import { NetworkError, ResponseError, UnknownError } from '../errors/sdkError';
 import { HttpClient, HttpRequest, HttpResponse, UploadProgressEvent } from './types';
 import { XMLParser } from "fast-xml-parser";
 
@@ -43,7 +43,7 @@ export class AxiosClient implements HttpClient {
                     const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse<OutputBody>((error as AxiosError).response as AxiosResponse<OutputBody>);
                     if (smashResponse.statusCode === 401 && request.refreshTokenMethod) {
                         try {
-                            const token = await request.refreshTokenMethod(smashResponse, retries);
+                            const token = await request.refreshTokenMethod(smashResponse as HttpResponse<ResponseError>, retries);
                             if (token) {
                                 const newRequest = request;
                                 newRequest.headers = { ...request.headers, Authorization: 'Bearer ' + token }
