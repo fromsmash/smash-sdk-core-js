@@ -34,7 +34,11 @@ export class AxiosClient implements HttpClient {
                 const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse<OutputBody>(response);
                 resolve(smashResponse);
             } catch (error: unknown) {
-                if (!(error as AxiosError)?.response && (error as AxiosError)?.request) {
+                if ((!(error as AxiosError)?.response && (error as AxiosError)?.request)
+                    || (error as AxiosError)?.code === AxiosError.ECONNABORTED
+                    || (error as AxiosError)?.code === AxiosError.ERR_NETWORK
+                    || (error as AxiosError)?.code === AxiosError.ETIMEDOUT
+                ) {
                     reject(new NetworkError(error as AxiosError));
                 } else if (request.bypassErrorHandler && error instanceof AxiosError && error?.response) {
                     const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse<OutputBody>((error as AxiosError).response as AxiosResponse<OutputBody>);
