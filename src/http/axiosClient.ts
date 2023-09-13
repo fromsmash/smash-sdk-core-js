@@ -50,7 +50,7 @@ export class AxiosClient implements HttpClient {
                             const token = await request.refreshTokenMethod(smashResponse as HttpResponse<ResponseError>, retries);
                             if (token) {
                                 const newRequest = request;
-                                newRequest.headers = { ...request.headers, Authorization: 'Bearer ' + token }
+                                newRequest.headers = { ...request.headers, Authorization: 'Bearer ' + token };
                                 const newResponse = await this.handle<OutputBody>(newRequest, ++retries);
                                 resolve(newResponse);
                             } else {
