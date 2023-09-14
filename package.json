@@ -1,13 +1,13 @@
 {
   "name": "@smash-sdk/core",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Smash Sdk Core",
   "main": "dist/index.js",
   "types": "dist/index.d.js",
   "author": "Smash & Co",
   "scripts": {
     "prebuild": "node -p \"'export const version = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts",
-    "build": "npm run prebuild && tsc",
+    "build": "npm run prebuild && tsc && cp ./README.md ./dist",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
