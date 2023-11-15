@@ -52,22 +52,30 @@ export class SDKError extends Error {
         }
     }
 
-    static stack(): NodeJS.CallSite[] {
-        const prepareStackTrace = Error.prepareStackTrace;
-        Error.prepareStackTrace = (_, stack) => stack;
-        const stack = ((new Error().stack) as unknown as NodeJS.CallSite[]).filter(s => !!s.getFileName());
-        while ((stack[0].getFileName() as string).indexOf("sdkError") >= 0) {
-            stack.shift();
+    static stack(): NodeJS.CallSite[] | string | undefined {
+        if (Array.isArray(new Error().stack)) {
+            const prepareStackTrace = Error.prepareStackTrace;
+            Error.prepareStackTrace = (_, stack) => stack;
+            const stack = ((new Error().stack) as unknown as NodeJS.CallSite[]).filter(s => !!s.getFileName());
+            while ((stack[0].getFileName() as string).indexOf("sdkError") >= 0) {
+                stack.shift();
+            }
+            while ((stack[0].getFileName() as string).indexOf("@smash-sdk") >= 0) {
+                stack.shift();
+            }
+            Error.prepareStackTrace = prepareStackTrace;
+            return stack;
+        } else {
+            return new Error().stack;
         }
-        while ((stack[0].getFileName() as string).indexOf("@smash-sdk") >= 0) {
-            stack.shift();
-        }
-        Error.prepareStackTrace = prepareStackTrace;
-        return stack;
     }
 
-    static stringifiedStack(): string {
-        return SDKError.stack().join("\n");
+    static stringifiedStack(): string | undefined {
+        if (Array.isArray(SDKError.stack())) {
+            return (SDKError.stack() as NodeJS.CallSite[]).join("\n");
+        } else {
+            return new Error().stack;
+        }
     }
 }
 
