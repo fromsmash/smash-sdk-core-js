@@ -5,6 +5,8 @@ import { isNode } from '../helper/node';
 import { RefreshTokenManager } from '../helper/refreshTokenManager';
 import { AxiosClient, HttpClient, HttpHeaders, HttpRequest, HttpResponse } from '../http';
 import { ClientParameters, Global, RefreshTokenMethod, Region, ServiceType } from './types';
+import { Agent as HttpAgent } from 'http';
+import { Agent as HttpsAgent } from 'https';
 
 export class Client {
     public service: string;
@@ -19,6 +21,11 @@ export class Client {
     constructor(params: ClientParameters & { service: string, type: ServiceType, userAgent: string }) {
         this.service = params.service;
         this.client = params.client || new AxiosClient();
+        this.client.setHttpConfiguration({
+            timeout: this.getTimeout(params),
+            httpAgent: params.httpAgent,
+            httpsAgent: params.httpsAgent,
+        });
         this.token = params.token ? params.token : config.getToken();
         this.region = this.getRegion(params);
         this.host = this.getHost(params);
@@ -63,6 +70,39 @@ export class Client {
             return host;
         }
         throw new InvalidHostError('Invalid host: no host provided in constructor and no host configured in config');
+    }
+
+    getTimeout(params: ClientParameters): number | undefined {
+        if (params.timeout) {
+            return params.timeout;
+        }
+        const timeout = config.getTimeout();
+        if (timeout) {
+            return timeout;
+        }
+        return undefined;
+    }
+
+    getHttpAgent(params: ClientParameters): HttpAgent | undefined {
+        if (params.httpAgent) {
+            return params.httpAgent;
+        }
+        const httpAgent = config.getHttpAgent();
+        if (httpAgent) {
+            return httpAgent;
+        }
+        return undefined;
+    }
+
+    getHttpsAgent(params: ClientParameters): HttpsAgent | undefined {
+        if (params.httpsAgent) {
+            return params.httpsAgent;
+        }
+        const httpsAgent = config.getHttpsAgent();
+        if (httpsAgent) {
+            return httpsAgent;
+        }
+        return undefined;
     }
 
     handle<T>(request: HttpRequest): Promise<HttpResponse<T>> {

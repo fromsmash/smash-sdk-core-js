@@ -1,4 +1,6 @@
 import { RefreshTokenMethod } from "../../client/types";
+import { Agent as HttpAgent } from 'http';
+import { Agent as HttpsAgent } from 'https';
 
 export type HttpMethod = 'GET' | 'DELETE' | 'POST' | 'PUT' | 'PATCH';
 export type HttpQueryParameters = { [key: string]: string | number };
@@ -44,7 +46,14 @@ export type HttpResponsesParameters<OutputBody> = {
     body: OutputBody;
 };
 
+export interface HttpClientConfiguration {
+    timeout?: number;
+    httpAgent?: HttpAgent;
+    httpsAgent?: HttpsAgent;
+}
+
 export interface HttpClient {
+    setHttpConfiguration(configuration: HttpClientConfiguration): void
     handle<OutputBody>(request: HttpRequest, retries?: number): Promise<HttpResponse<OutputBody>>;
 }
 

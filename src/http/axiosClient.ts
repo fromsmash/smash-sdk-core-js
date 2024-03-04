@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { RefreshTokenMethod } from '../client/types';
 import { NetworkError, ResponseError, UnknownError } from '../errors/sdkError';
-import { HttpClient, HttpRequest, HttpResponse, UploadProgressEvent } from './types';
+import { HttpClient, HttpClientConfiguration, HttpRequest, HttpResponse, UploadProgressEvent } from './types';
 import { XMLParser } from "fast-xml-parser";
 
 interface AxiosUploadProgressEvent {
@@ -23,7 +23,11 @@ export class AxiosClient implements HttpClient {
 
 
     constructor() {
-        this.client = axios.create(defaultAxiosConfig)
+        this.client = axios.create(defaultAxiosConfig);
+    }
+
+    setHttpConfiguration(configuration: HttpClientConfiguration): void {
+        this.client = axios.create({ ...defaultAxiosConfig, ...configuration });
     }
 
     handle<OutputBody>(request: HttpRequest, retries: number = 0): Promise<HttpResponse<OutputBody>> {

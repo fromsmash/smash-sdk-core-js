@@ -1,5 +1,5 @@
 import { ResponseError } from '../../errors/sdkError';
-import { HttpClient, HttpResponse } from '../../http/types';
+import { HttpClient, HttpClientConfiguration, HttpResponse } from '../../http/types';
 
 export type Region =
     'eu-west-1' |
@@ -31,10 +31,10 @@ export enum regions {
 export type ServiceType = Regional | Global;
 
 export type RefreshTokenMethod = (httpResponse: HttpResponse<ResponseError>, retries: number) => Promise<string | void>;
-export interface ClientParameters {
+export interface ClientParameters extends HttpClientConfiguration {
     token?: string;
     client?: HttpClient;
     region?: Region;
     host?: string;
     refreshTokenMethod?: RefreshTokenMethod;
-}
+};

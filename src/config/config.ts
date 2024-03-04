@@ -4,6 +4,8 @@ import { isNode } from "../helper/node";
 import { SmashEnvRegion, SmashEnvToken } from "./types/index";
 import { version } from '../version';
 import { RefreshTokenManager } from "../helper/refreshTokenManager";
+import { Agent as HttpAgent } from 'http';
+import { Agent as HttpsAgent } from 'https';
 
 const globalKey = Symbol('smashSdkConfig_' + version);
 export interface RegionalHost {
@@ -23,7 +25,7 @@ export interface GlobalHost {
 }
 
 export interface Hosts {
-    [key: string]: GlobalHost | RegionalHost
+    [key: string]: GlobalHost | RegionalHost;
 };
 
 declare global {
@@ -36,6 +38,9 @@ declare global {
             smashSdkRegion?: Region | GlobalRegion;
             smashSdkRefreshTokenMethod?: RefreshTokenMethod;
             smashSdkRefreshTokenManager?: RefreshTokenManager;
+            smashSdkTimeout?: number;
+            smashSdkHttpAgent?: HttpAgent;
+            smashSdkHttpsAgent?: HttpsAgent;
         }
     }
 
@@ -47,6 +52,9 @@ declare global {
         smashSdkRegion?: Region | GlobalRegion;
         smashSdkRefreshTokenMethod?: RefreshTokenMethod;
         smashSdkRefreshTokenManager?: RefreshTokenManager;
+        smashSdkTimeout?: number;
+        smashSdkHttpAgent?: HttpAgent;
+        smashSdkHttpsAgent?: HttpsAgent;
     }
 }
 
@@ -105,6 +113,54 @@ export class Config {
             (global as NodeJS.Global).smashSdkRegion = region;
         } else {
             window.smashSdkRegion = region;
+        }
+    }
+
+    get timeout(): number | undefined {
+        if (isNode()) {
+            return (global as NodeJS.Global).smashSdkTimeout;
+        } else {
+            return window.smashSdkTimeout;
+        }
+    }
+
+    set timeout(timeout: number | undefined) {
+        if (isNode()) {
+            (global as NodeJS.Global).smashSdkTimeout = timeout;
+        } else {
+            window.smashSdkTimeout = timeout;
+        }
+    }
+
+    get httpAgent(): HttpAgent | undefined {
+        if (isNode()) {
+            return (global as NodeJS.Global).smashSdkHttpAgent;
+        } else {
+            return window.smashSdkHttpAgent;
+        }
+    }
+
+    set httpAgent(httpAgent: HttpAgent | undefined) {
+        if (isNode()) {
+            (global as NodeJS.Global).smashSdkHttpAgent = httpAgent;
+        } else {
+            window.smashSdkHttpAgent = httpAgent;
+        }
+    }
+
+    get httpsAgent(): HttpsAgent | undefined {
+        if (isNode()) {
+            return (global as NodeJS.Global).smashSdkHttpsAgent;
+        } else {
+            return window.smashSdkHttpsAgent;
+        }
+    }
+
+    set httpsAgent(httpsAgent: HttpsAgent | undefined) {
+        if (isNode()) {
+            (global as NodeJS.Global).smashSdkHttpsAgent = httpsAgent;
+        } else {
+            window.smashSdkHttpsAgent = httpsAgent;
         }
     }
 
@@ -185,8 +241,17 @@ export class Config {
         }
     }
 
-    setHosts(service: string, hosts: RegionalHost | GlobalHost) {
-        this.hosts[service] = hosts;
+    setHosts(service: string, hosts: RegionalHost | GlobalHost, overwrite = true) {
+        if (overwrite === true) {
+            this.hosts[service] = hosts;
+        } else {
+            const keys = Object.keys(hosts) as (keyof GlobalHost & keyof RegionalHost)[];
+            keys.forEach(key => {
+                if (!this.hosts[service][key]) {
+                    this.hosts[service][key] = hosts[key];
+                }
+            });
+        }
     }
 
     setRegion(region: Region) {
@@ -215,6 +280,30 @@ export class Config {
 
     getRefreshTokenManager(): RefreshTokenManager | undefined {
         return this.refreshtokenManager;
+    }
+
+    setTimeout(timeout: number) {
+        this.timeout = timeout;
+    }
+
+    getTimeout(): number | undefined {
+        return this.timeout;
+    }
+
+    setHttpAgent(httpAgent: HttpAgent) {
+        this.httpAgent = httpAgent;
+    }
+
+    getHttpAgent(): HttpAgent | undefined {
+        return this.httpAgent;
+    }
+
+    setHttpsAgent(httpsAgent: HttpsAgent) {
+        this.httpsAgent = httpsAgent;
+    }
+
+    getHttpsAgent(): HttpsAgent | undefined {
+        return this.httpsAgent;
     }
 }
 
