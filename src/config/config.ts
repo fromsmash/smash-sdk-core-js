@@ -247,6 +247,9 @@ export class Config {
         } else {
             const keys = Object.keys(hosts) as (keyof GlobalHost & keyof RegionalHost)[];
             keys.forEach(key => {
+                if (!this.hosts[service]) {
+                    this.hosts[service] = {};
+                }
                 if (!this.hosts[service][key]) {
                     this.hosts[service][key] = hosts[key];
                 }
