@@ -3,9 +3,9 @@ import { Agent as HttpAgent } from 'http';
 import { Agent as HttpsAgent } from 'https';
 
 export type HttpMethod = 'GET' | 'DELETE' | 'POST' | 'PUT' | 'PATCH';
-export type HttpQueryParameters = { [key: string]: string | number };
+export type HttpQueryParameters = { [key: string]: string | number | string[] | undefined };
 export type HttpPathParameters = { [key: string]: string | number };
-export type HttpHeaders = { [key: string]: string | number };
+export type HttpHeaders = { [key: string]: string | number | string[] | undefined };
 export type HttpBodyParameters = { [key: string]: any } | string | Buffer | ArrayBuffer;
 export type HttpResponseType = 'stream' | 'object';
 
@@ -63,7 +63,7 @@ export class HttpRequest {
     public host?: string;
     public path?: string;
     public url?: string;
-    public headers?: HttpHeaders;
+    public headers: HttpHeaders = {};
     public pathParameters: HttpPathParameters = {};
     public queryParameters: HttpQueryParameters = {};
     public bodyParameters?: HttpBodyParameters;
@@ -85,9 +85,15 @@ export class HttpRequest {
         if ((params as HttpRequestUrlParameters).url) {
             this.url = (params as HttpRequestUrlParameters).url;
         }
-        this.headers = params.headers || {};
-        this.pathParameters = params.pathParameters || {};
-        this.queryParameters = params.queryParameters || {};
+        if (params.headers) {
+            this.headers = params.headers;
+        }
+        if (params.pathParameters) {
+            this.pathParameters = params.pathParameters;
+        }
+        if (params.queryParameters) {
+            this.queryParameters = params.queryParameters;
+        }
         this.bodyParameters = params.bodyParameters;
         this.timeout = params.timeout;
         this.bypassErrorHandler = params.bypassErrorHandler;

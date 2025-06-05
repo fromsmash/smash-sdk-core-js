@@ -3,7 +3,7 @@ import { InvalidHostError, InvalidRegionError, InvalidRegionOrHostError, Respons
 import { formatErrorName } from '../helper/error';
 import { isNode } from '../helper/node';
 import { RefreshTokenManager } from '../helper/refreshTokenManager';
-import { AxiosClient, HttpClient, HttpHeaders, HttpRequest, HttpResponse } from '../http';
+import { AxiosClient, HttpClient, HttpHeaders, HttpQueryParameters, HttpRequest, HttpResponse } from '../http';
 import { ClientParameters, Global, RefreshTokenMethod, Region, ServiceType } from './types';
 import { Agent as HttpAgent } from 'http';
 import { Agent as HttpsAgent } from 'https';
@@ -105,16 +105,35 @@ export class Client {
         return undefined;
     }
 
-    handle<T>(request: HttpRequest): Promise<HttpResponse<T>> {
-        return new Promise((resolve, reject) => {
-            if (!request.headers) {
-                request.headers = {};
-            }
+    handle<T>(request: HttpRequest, retries: number = 0): Promise<HttpResponse<T>> {
+        return new Promise(async (resolve, reject) => {
             if (isNode()) {
                 request.headers['User-Agent'] = this.userAgent;
             }
-            request.headers = this.cleanHeaders(request.headers);
-            this.client.handle<T>(request).then(resolve).catch(reject);
+            request = this.cleanRequest(request);
+            try {
+                const smashResponse = await this.client.handle<T>(request);
+                if (smashResponse.statusCode === 401 && typeof request.refreshTokenMethod === 'function') {
+                    try {
+                        const token = await request.refreshTokenMethod(smashResponse as HttpResponse<ResponseError>, retries);
+                        if (token) {
+                            this.token = token;
+                            const newRequest = request;
+                            newRequest.headers = { ...request.headers, Authorization: 'Bearer ' + this.token };
+                            const newResponse = await this.handle<T>(newRequest, ++retries);
+                            resolve(newResponse);
+                        } else {
+                            resolve(smashResponse);
+                        }
+                    } catch (error) {
+                        reject(error);
+                    }
+                } else {
+                    resolve(smashResponse);
+                }
+            } catch (error: unknown) {
+                reject(error);
+            }
         });
     }
 
@@ -134,8 +153,14 @@ export class Client {
         return code >= 200 && code < 300;
     }
 
-    cleanHeaders(headers: HttpHeaders): HttpHeaders {
-        Object.keys(headers).forEach(key => headers[key] === undefined && delete headers[key]);
-        return headers;
+    protected clean(data: HttpHeaders | HttpQueryParameters): HttpHeaders | HttpQueryParameters {
+        Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
+        return data;
+    }
+
+    protected cleanRequest(request: HttpRequest): HttpRequest {
+        request.headers = this.clean(request.headers);
+        request.queryParameters = this.clean(request.queryParameters);
+        return request;
     }
 }

@@ -1,9 +1,9 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosRequestHeaders, AxiosResponse } from 'axios';
 import { RefreshTokenMethod } from '../client/types';
-import { NetworkError, ResponseError, UnknownError } from '../errors/sdkError';
+import { ConnectionAbortedError, NetworkError, ResponseError, TimeoutError, UnknownError } from '../errors/sdkError';
 import { HttpClient, HttpClientConfiguration, HttpRequest, HttpResponse, UploadProgressEvent } from './types';
 import { XMLParser } from "fast-xml-parser";
-
+import Qs from "qs";
 interface AxiosUploadProgressEvent {
     loaded: number,
     total: number,
@@ -30,7 +30,7 @@ export class AxiosClient implements HttpClient {
         this.client = axios.create({ ...defaultAxiosConfig, ...configuration });
     }
 
-    handle<OutputBody>(request: HttpRequest, retries: number = 0): Promise<HttpResponse<OutputBody>> {
+    handle<OutputBody>(request: HttpRequest): Promise<HttpResponse<OutputBody>> {
         return new Promise(async (resolve, reject) => {
             try {
                 const axiosParams = this.transformToAxiosParams(request);
@@ -38,34 +38,17 @@ export class AxiosClient implements HttpClient {
                 const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse<OutputBody>(response);
                 resolve(smashResponse);
             } catch (error: unknown) {
-                if ((!(error as AxiosError)?.response && (error as AxiosError)?.request)
-                    || (error as AxiosError)?.code === AxiosError.ECONNABORTED
-                    || (error as AxiosError)?.code === AxiosError.ERR_NETWORK
-                    || (error as AxiosError)?.code === AxiosError.ETIMEDOUT
-                ) {
+                if ((error as AxiosError)?.code === AxiosError.ERR_NETWORK) {
                     reject(new NetworkError(error as AxiosError));
-                } else if (request.bypassErrorHandler && error instanceof AxiosError && error?.response) {
+                } else if ((error as AxiosError)?.code === AxiosError.ECONNABORTED) {
+                    reject(new ConnectionAbortedError(error as AxiosError));
+                } else if ((error as AxiosError)?.code === AxiosError.ETIMEDOUT) {
+                    reject(new TimeoutError(error as AxiosError));
+                } else if ((!(error as AxiosError)?.response && (error as AxiosError)?.request)) {
+                    reject(new NetworkError(error as AxiosError));
+                } else if ((error as AxiosError)?.response?.status || (request.bypassErrorHandler && error instanceof AxiosError && error?.response)) {
                     const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse<OutputBody>((error as AxiosError).response as AxiosResponse<OutputBody>);
                     resolve(smashResponse);
-                } else if ((error as AxiosError)?.response?.status) {
-                    const smashResponse: HttpResponse<OutputBody> = this.transformToSmashResponse<OutputBody>((error as AxiosError).response as AxiosResponse<OutputBody>);
-                    if (smashResponse.statusCode === 401 && request.refreshTokenMethod) {
-                        try {
-                            const token = await request.refreshTokenMethod(smashResponse as HttpResponse<ResponseError>, retries);
-                            if (token) {
-                                const newRequest = request;
-                                newRequest.headers = { ...request.headers, Authorization: 'Bearer ' + token };
-                                const newResponse = await this.handle<OutputBody>(newRequest, ++retries);
-                                resolve(newResponse);
-                            } else {
-                                resolve(smashResponse);
-                            }
-                        } catch (error) {
-                            reject(error);
-                        }
-                    } else {
-                        resolve(smashResponse);
-                    }
                 } else {
                     reject(new UnknownError(error as Error));
                 }
@@ -85,9 +68,10 @@ export class AxiosClient implements HttpClient {
         return {
             method: request.method.toLowerCase(),
             url: request.getUrl(),
-            headers: request.headers,
+            headers: request.headers as AxiosRequestHeaders,
             data: request.bodyParameters,
             params: request.queryParameters,
+            paramsSerializer: (params) => Qs.stringify(params, { arrayFormat: 'repeat' }),
             responseType: request.responseType === 'object' ? 'json' : 'stream',
             onUploadProgress: (event: AxiosUploadProgressEvent) => {
                 if (request.onUploadProgress) {
