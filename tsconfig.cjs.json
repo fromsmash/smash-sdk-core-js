@@ -5,6 +5,7 @@
         "lib": [
             "dom"
         ],
-        "outDir": "./dist/cjs"
+        "outDir": "dist/cjs",
+        "declaration": true
     }
 }

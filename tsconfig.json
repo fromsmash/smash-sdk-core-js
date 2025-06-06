@@ -5,7 +5,7 @@
       "importHelpers": true,
       "removeComments": true,
       "resolveJsonModule": true,
-      "rootDir": "src",
+      "rootDir": "./src",
       "useUnknownInCatchVariables": false,
       "lib": [
         "dom"
@@ -13,5 +13,6 @@
     },
     "exclude": [
       "test/",
+      "dist/"
     ]
   }
